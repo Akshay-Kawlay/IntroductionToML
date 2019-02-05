@@ -16,12 +16,9 @@ def loadData():
         Target = Target[dataIndx].reshape(-1, 1)
         Target[Target==posClass] = 1
         Target[Target==negClass] = 0
-        np.random.seed(421)
+        #np.random.seed(421)
         randIndx = np.arange(len(Data))
-        print(len(Data))
         np.random.shuffle(randIndx)
-        print(randIndx.shape)
-        print(randIndx)
         Data, Target = Data[randIndx], Target[randIndx]
         trainData, trainTarget = Data[:3500], Target[:3500]
         validData, validTarget = Data[3500:3600], Target[3500:3600]
@@ -55,15 +52,30 @@ def main():
     iterations = 4000
     EPS = 0.001
     
+    W_trained, b_trained = grad_descent(W, b, X_train, Y_train, alpha, iterations, reg, EPS, lossType="MSE")
+    
+    #calculate test error
+    mse = MSE(W_trained,b_trained,X_test,Y_test, reg)
+    print("MSE = ",mse)
+    
     W_trained, b_trained = grad_descent(W, b, X_train, Y_train, alpha, iterations, reg, EPS, lossType="CE")
     
-    #calculate test error
-    # mse = MSE(W_trained,b_trained,X_test,Y_test,reg)
-    # print(mse)
+    #calculate test accuraccy
+    acc = evaluate_logistic_model(W_trained,b_trained,X_test,Y_test)
+    print("Classification Accuraccy = "+str(acc*100)+"%")
+
+def evaluate_logistic_model(W_trained,b_trained,X_test,Y_test):
+    '''
+    Evaluates a trained model with test data
+    '''
+    Yhat = forward_propagation(W_trained, b_trained, X_test)
+    # for i in range(len(Y_test)):
+        # print(Yhat[i],Y_test[i])
+    eval = Yhat > 0
+    correct = eval==Y_test
+    acc = sum(correct)/len(Y_test)
     
-    #calculate test error
-    ce = crossEntropyLoss(W_trained,b_trained,X_test,Y_test,reg)
-    print(ce)
+    return np.squeeze(acc)
     
     
 def forward_propagation(W, b, x):
@@ -170,7 +182,7 @@ def plot_errors(e_train, e_valid):
 def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rate=None):
     # Your implementation here
     tf.set_random_seed(421)
-    iterations = 4000
+    iterations = 1000
     trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
     X_train, X_valid, X_test = getReshapedDatasets(trainData, validData, testData)
     Y_train, Y_valid, Y_test = trainTarget, validTarget, testTarget
@@ -182,7 +194,11 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
     X = tf.placeholder(tf.float32, shape=None)#(3500,784))
     Y = tf.placeholder(tf.float32, shape=None)#(3500,1))
     Yhat = tf.add(tf.matmul(X,W), b)
-        
+    error_t = np.zeros(iterations)
+    error_v = np.zeros(iterations)
+    test_error = 0
+    batch_size = 1750
+    
     if lossType == "MSE": 
         # Your implementation 
         print("MSE")
@@ -192,18 +208,16 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
     elif lossType == "CE": 
         #Your implementation here
         print("CE")
-        error = tf.losses.sigmoid_cross_entropy([n,2])
+        error = tf.losses.sigmoid_cross_entropy(Y, Yhat)
         #optimizer =  tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(error)
         optimizer =  tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon).minimize(error)
         
     initialize = tf.global_variables_initializer()
-    error_t = np.zeros(iterations)
-    error_v = np.zeros(iterations)
-    test_error = 0
-    batch_size = 1750
+    
     with tf.Session() as s:
         s.run(initialize)
         for i in range(iterations):
+            print(i)
             if (i*batch_size)%N == 0:
                 randIndx = np.arange(N)
                 np.random.shuffle(randIndx)
@@ -221,7 +235,7 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
     plot_errors(error_t, error_v)
     
     
-#main()
-buildGraph(0.99, 0.9, 0.0001, "MSE", 0.001)
+main()
+#buildGraph(0.99, 0.9, 0.0001, "CE", 0.001)
 #loadData()
 
