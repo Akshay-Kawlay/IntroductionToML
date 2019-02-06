@@ -45,24 +45,41 @@ def main():
     # s = int(time.time()*1000%1000)  #comment this before submission to be consistent with marker seed
     # np.random.seed(s)
     d = len(X_train[0])
-    W = np.zeros((d,1)) #np.random.rand(d,1)
-    b = 0 #np.random.rand(1)
+    W = np.random.rand(d,1)#np.zeros((d,1)) #np.random.rand(d,1)
+    b = np.random.rand(1)#0 #np.random.rand(1)
     reg = 0
-    alpha = 0.0129
-    iterations = 4000
+    alpha = 0.01#0.0129
+    iterations = 5000
     EPS = 0.001
     
-    W_trained, b_trained = grad_descent(W, b, X_train, Y_train, alpha, iterations, reg, EPS, lossType="MSE")
+    # W_trained, b_trained = grad_descent(W, b, X_train, Y_train, alpha, iterations, reg, EPS, lossType="MSE")
     
-    #calculate test error
-    mse = MSE(W_trained,b_trained,X_test,Y_test, reg)
-    print("MSE = ",mse)
+    # #calculate test error
+    # acc_mse = evaluate_linear_model(W_trained,b_trained,X_test,Y_test)
+    # print("Linear Regression Test Accuraccy = "+str(acc_mse*100)+"%")
     
+    W = np.zeros((d,1))
+    b = 0
     W_trained, b_trained = grad_descent(W, b, X_train, Y_train, alpha, iterations, reg, EPS, lossType="CE")
     
     #calculate test accuraccy
-    acc = evaluate_logistic_model(W_trained,b_trained,X_test,Y_test)
-    print("Classification Accuraccy = "+str(acc*100)+"%")
+    acc_ce = evaluate_logistic_model(W_trained,b_trained,X_test,Y_test)
+    print("Logistic Regression Test Accuraccy = "+str(acc_ce*100)+"%")
+
+def evaluate_linear_model(W_trained,b_trained,X_test,Y_test):
+    '''
+    Calculates the final test error. 
+    if Yhat > 0.5 then it is predicted as class 1 else it is predicted as class 0
+    then accuracy is calculated by comparing with Y_test
+    '''
+    Yhat = forward_propagation(W_trained, b_trained, X_test)
+    # for i in range(len(Y_test)):
+        # print(Yhat[i],Y_test[i])
+    eval = Yhat > 0.5
+    correct = eval==Y_test
+    acc = sum(correct)/len(Y_test)
+    
+    return np.squeeze(acc)
 
 def evaluate_logistic_model(W_trained,b_trained,X_test,Y_test):
     '''
@@ -71,8 +88,10 @@ def evaluate_logistic_model(W_trained,b_trained,X_test,Y_test):
     Yhat = forward_propagation(W_trained, b_trained, X_test)
     # for i in range(len(Y_test)):
         # print(Yhat[i],Y_test[i])
-    eval = Yhat > 0
+    eval = Yhat > 0.5
+    
     correct = eval==Y_test
+    #print(correct)
     acc = sum(correct)/len(Y_test)
     
     return np.squeeze(acc)
@@ -142,19 +161,24 @@ def grad_descent(W, b, trainingData, trainingLabels, alpha, iterations, reg, EPS
     #store mse values to plot later
     error_t = np.zeros(iterations)
     error_v = np.zeros(iterations)
-    
+    acc_t = np.zeros(iterations)
+    acc_v = np.zeros(iterations)
     for i in range(iterations):
         if lossType=="MSE":
             #print(i)
             e = MSE(W, b, trainingData, trainingLabels, reg)
             error_v[i] = MSE(W, b, X_valid, Y_valid, reg)
             error_t[i] = e
+            acc_t[i] = evaluate_linear_model(W, b, trainingData, trainingLabels)
+            acc_t[i] = evaluate_linear_model(W, b, X_valid, Y_valid)
             dW, db = gradMSE(W, b, trainingData, trainingLabels, reg)
             
         elif lossType=="CE":
             e = crossEntropyLoss(W, b, trainingData, trainingLabels, reg)
             error_v[i] = crossEntropyLoss(W, b, X_valid, Y_valid, reg)
             error_t[i] = e
+            acc_t[i] = evaluate_logistic_model(W, b, trainingData, trainingLabels)
+            acc_t[i] = evaluate_logistic_model(W, b, X_valid, Y_valid)
             #print(i)
             dW, db = gradCE(W, b, trainingData, trainingLabels, reg)
             
@@ -164,16 +188,25 @@ def grad_descent(W, b, trainingData, trainingLabels, alpha, iterations, reg, EPS
         W -= alpha*dW
         b -= alpha*db
         
-    print(error_t[iterations-1])
-    print(error_v[iterations-1])
+    print("Final training error = ",error_t[iterations-1])
+    print("Final validation error = ",error_v[iterations-1])
     plot_errors(error_t[200:], error_v[200:])
+    plot_accuracy(acc_t, acc_v)
     
     return W, b
-    
+
+def plot_accuracy(acc_t, acc_v):
+    plt.plot(acc_t, label="training accuracy")
+    plt.plot(acc_v, label="validation accuracy")
+    plt.legend(loc='lower right')
+    plt.xlabel("Iterations")
+    plt.ylabel("Accuraccy")
+    plt.show()   
+ 
 def plot_errors(e_train, e_valid):
     plt.plot(e_train, label="training error")
     plt.plot(e_valid, label="validation error")
-    plt.legend(loc='upper left')
+    plt.legend(loc='upper right')
     plt.xlabel("Iterations")
     plt.ylabel("Error")
     plt.show()
@@ -182,7 +215,7 @@ def plot_errors(e_train, e_valid):
 def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rate=None):
     # Your implementation here
     tf.set_random_seed(421)
-    iterations = 1000
+    iterations = 700
     trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
     X_train, X_valid, X_test = getReshapedDatasets(trainData, validData, testData)
     Y_train, Y_valid, Y_test = trainTarget, validTarget, testTarget
@@ -199,18 +232,18 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
     error_t = np.zeros(iterations)
     error_v = np.zeros(iterations)
     test_error = 0
-    batch_size = 1750
-    
+    batch_size = 500
+    reg = 0
     if lossType == "MSE": 
         # Your implementation 
         print("MSE")
-        error = tf.losses.mean_squared_error(Y, Yhat)   #tf.reduce_sum(tf.pow(Yhat - Y, 2)) / N #
+        error = tf.losses.mean_squared_error(Y, Yhat) + reg*tf.nn.l2_loss(W)  #tf.reduce_sum(tf.pow(Yhat - Y, 2)) / N #
         #optimizer =  tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(error)        
         optimizer =  tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon).minimize(error)
     elif lossType == "CE": 
         #Your implementation here
         print("CE")
-        error = tf.losses.sigmoid_cross_entropy(Y, Yhat)
+        error = tf.losses.sigmoid_cross_entropy(Y, Yhat) + reg*tf.nn.l2_loss(W)
         #optimizer =  tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(error)
         optimizer =  tf.train.AdamOptimizer(learning_rate=learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon).minimize(error)
         
@@ -219,7 +252,7 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
     with tf.Session() as s:
         s.run(initialize)
         for i in range(iterations):
-            print(i)
+            #print(i)
             if (i*batch_size)%N == 0:
                 randIndx = np.arange(N)
                 np.random.shuffle(randIndx)
@@ -233,9 +266,11 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
         test_error = s.run(error, feed_dict={X:X_test, Y:Y_test})
     print("Final training error = ",error_t[iterations-1])
     print("Final validation error = ",error_v[iterations-1])
+    print("Final test error = ",test_error)
     if lossType=="CE":
-        acc = evaluate_logistic_model(W,b,X_test,Y_test)
-        print("Classification Accuraccy = "+str(acc*100)+"%")
+        #acc = evaluate_logistic_model(W,b,X_test,Y_test)
+        #print("Classification Accuraccy = "+str(acc*100)+"%")
+        print("CE")
     else:
         print("Final test error = ",test_error)
     plot_errors(error_t, error_v)
@@ -244,4 +279,3 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
 main()
 #buildGraph(0.99, 0.9, 0.0001, "CE", 0.001)
 #loadData()
-
