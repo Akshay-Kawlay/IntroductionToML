@@ -188,8 +188,10 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
     Y_train, Y_valid, Y_test = trainTarget, validTarget, testTarget
     N = len(X_train)
     d = len(X_train[0])
-    W = tf.Variable(np.zeros((d,1)), name="W", dtype=tf.float32)  #tf.truncated_normal((d,1))  #'''np.zeros((d,1))'''
-    b = tf.Variable(0, name="b", dtype=tf.float32)    #tf.truncated_normal((1,1))  #
+    rand_w = tf.random.truncated_normal((d,1),stddev=0.5,dtype=tf.float32)
+    W = tf.Variable(rand_w, name="W", dtype=tf.float32)
+    rand_b = tf.random.truncated_normal((1,1),stddev=0.5,dtype=tf.float32)
+    b = tf.Variable(rand_b, name="b", dtype=tf.float32)  
     reg = tf.placeholder(tf.float32, name="lambda")
     X = tf.placeholder(tf.float32, shape=None)#(3500,784))
     Y = tf.placeholder(tf.float32, shape=None)#(3500,1))
@@ -229,9 +231,13 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
             error_v[i] = s.run(error, feed_dict={X:X_valid, Y:Y_valid})
         #test error
         test_error = s.run(error, feed_dict={X:X_test, Y:Y_test})
-    print(error_t[iterations-1])
-    print(error_v[iterations-1])
-    print(test_error)
+    print("Final training error = ",error_t[iterations-1])
+    print("Final validation error = ",error_v[iterations-1])
+    if lossType=="CE":
+        acc = evaluate_logistic_model(W,b,X_test,Y_test)
+        print("Classification Accuraccy = "+str(acc*100)+"%")
+    else:
+        print("Final test error = ",test_error)
     plot_errors(error_t, error_v)
     
     
