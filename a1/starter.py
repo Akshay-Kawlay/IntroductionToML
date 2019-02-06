@@ -45,18 +45,18 @@ def main():
     # s = int(time.time()*1000%1000)  #comment this before submission to be consistent with marker seed
     # np.random.seed(s)
     d = len(X_train[0])
-    W = np.random.rand(d,1)#np.zeros((d,1)) #np.random.rand(d,1)
-    b = np.random.rand(1)#0 #np.random.rand(1)
+    W = np.zeros((d,1)) #np.random.rand(d,1)
+    b = 0 #np.random.rand(1)
     reg = 0
     alpha = 0.01#0.0129
     iterations = 5000
     EPS = 0.001
     
-    # W_trained, b_trained = grad_descent(W, b, X_train, Y_train, alpha, iterations, reg, EPS, lossType="MSE")
+    W_trained, b_trained = grad_descent(W, b, X_train, Y_train, alpha, iterations, reg, EPS, lossType="MSE")
     
-    # #calculate test error
-    # acc_mse = evaluate_linear_model(W_trained,b_trained,X_test,Y_test)
-    # print("Linear Regression Test Accuraccy = "+str(acc_mse*100)+"%")
+    #calculate test error
+    acc_mse = evaluate_linear_model(W_trained,b_trained,X_test,Y_test)
+    print("Linear Regression Test Accuraccy = "+str(acc_mse*100)+"%")
     
     W = np.zeros((d,1))
     b = 0
