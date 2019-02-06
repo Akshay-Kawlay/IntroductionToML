@@ -231,6 +231,8 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
     Yhat = tf.add(tf.matmul(X,W), b)
     error_t = np.zeros(iterations)
     error_v = np.zeros(iterations)
+    # acc_t = np.zeros(iterations)
+    # acc_v = np.zeros(iterations)
     test_error = 0
     batch_size = 500
     reg = 0
@@ -252,7 +254,7 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
     with tf.Session() as s:
         s.run(initialize)
         for i in range(iterations):
-            #print(i)
+            print(i)
             if (i*batch_size)%N == 0:
                 randIndx = np.arange(N)
                 np.random.shuffle(randIndx)
@@ -262,20 +264,22 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
             s.run(optimizer, feed_dict={X:X_train_SGD, Y:Y_train_SGD})
             error_t[i] = s.run(error, feed_dict={X:X_train, Y:Y_train})
             error_v[i] = s.run(error, feed_dict={X:X_valid, Y:Y_valid})
+            # if lossType=="MSE":
+                # acc_t[i] = evaluate_linear_model(W, b, X_train, Y_train)
+                # acc_v[i] = evaluate_linear_model(W, b, X_valid, Y_valid)
+            # if lossType=="CE":
+                # acc_t[i] = evaluate_logistic_model(W, b, X_train, Y_train)
+                # acc_v[i] = evaluate_logistic_model(W, b, X_valid, Y_valid)
         #test error
         test_error = s.run(error, feed_dict={X:X_test, Y:Y_test})
     print("Final training error = ",error_t[iterations-1])
     print("Final validation error = ",error_v[iterations-1])
     print("Final test error = ",test_error)
-    if lossType=="CE":
-        #acc = evaluate_logistic_model(W,b,X_test,Y_test)
-        #print("Classification Accuraccy = "+str(acc*100)+"%")
-        print("CE")
-    else:
-        print("Final test error = ",test_error)
+    
     plot_errors(error_t, error_v)
+    #plot_accuracy(acc_t, acc_v)
     
     
 main()
-#buildGraph(0.99, 0.9, 0.0001, "CE", 0.001)
-#loadData()
+buildGraph(0.99, 0.9, 0.0001, "MSE", 0.001)
+buildGraph(0.99, 0.9, 0.0001, "CE", 0.001)
