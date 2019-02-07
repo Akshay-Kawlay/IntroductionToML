@@ -16,15 +16,13 @@ def loadData():
         Target = Target[dataIndx].reshape(-1, 1)
         Target[Target==posClass] = 1
         Target[Target==negClass] = 0
-        #np.random.seed(421)
         randIndx = np.arange(len(Data))
         np.random.shuffle(randIndx)
         Data, Target = Data[randIndx], Target[randIndx]
         trainData, trainTarget = Data[:3500], Target[:3500]
         validData, validTarget = Data[3500:3600], Target[3500:3600]
         testData, testTarget = Data[3600:], Target[3600:]
-        #print(Data.shape)
-        # print(trainTarget.shape)
+    
     return trainData, validData, testData, trainTarget, validTarget, testTarget
 
 def getReshapedDatasets(trainData, validData, testData):
@@ -40,24 +38,21 @@ def main():
     trainData, validData, testData, trainTarget, validTarget, testTarget = loadData()
     X_train, X_valid, X_test = getReshapedDatasets(trainData, validData, testData)
     Y_train, Y_valid, Y_test = trainTarget, validTarget, testTarget
-        
-    #X_train = np.insert(X_train, 0, 1, axis=1)     #to combine b in W
-    # s = int(time.time()*1000%1000)  #comment this before submission to be consistent with marker seed
-    # np.random.seed(s)
     d = len(X_train[0])
-    W = np.zeros((d,1)) #np.random.rand(d,1)
-    b = 0 #np.random.rand(1)
+    W = np.zeros((d,1))
+    b = 0 
     reg = 0
-    alpha = 0.01#0.0129
+    alpha = 0.01
     iterations = 5000
     EPS = 0.001
-    
+    print("PART 1")
     W_trained, b_trained = grad_descent(W, b, X_train, Y_train, alpha, iterations, reg, EPS, lossType="MSE")
     
     #calculate test error
     acc_mse = evaluate_linear_model(W_trained,b_trained,X_test,Y_test)
     print("Linear Regression Test Accuraccy = "+str(acc_mse*100)+"%")
-    
+   
+    print("PART 2")
     W = np.zeros((d,1))
     b = 0
     W_trained, b_trained = grad_descent(W, b, X_train, Y_train, alpha, iterations, reg, EPS, lossType="CE")
@@ -229,10 +224,11 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
     X = tf.placeholder(tf.float32, shape=None)#(3500,784))
     Y = tf.placeholder(tf.float32, shape=None)#(3500,1))
     Yhat = tf.add(tf.matmul(X,W), b)
+    acc = tf.sigmoid(Yhat)
     error_t = np.zeros(iterations)
+    acc_t = np.zeros(iterations)
     error_v = np.zeros(iterations)
-    # acc_t = np.zeros(iterations)
-    # acc_v = np.zeros(iterations)
+    acc_v = np.zeros(iterations)
     test_error = 0
     batch_size = 500
     reg = 0
@@ -254,7 +250,7 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
     with tf.Session() as s:
         s.run(initialize)
         for i in range(iterations):
-            print(i)
+            #print(i)
             if (i*batch_size)%N == 0:
                 randIndx = np.arange(N)
                 np.random.shuffle(randIndx)
@@ -264,22 +260,45 @@ def buildGraph(beta1=None, beta2=None, epsilon=None, lossType=None, learning_rat
             s.run(optimizer, feed_dict={X:X_train_SGD, Y:Y_train_SGD})
             error_t[i] = s.run(error, feed_dict={X:X_train, Y:Y_train})
             error_v[i] = s.run(error, feed_dict={X:X_valid, Y:Y_valid})
-            # if lossType=="MSE":
-                # acc_t[i] = evaluate_linear_model(W, b, X_train, Y_train)
-                # acc_v[i] = evaluate_linear_model(W, b, X_valid, Y_valid)
-            # if lossType=="CE":
-                # acc_t[i] = evaluate_logistic_model(W, b, X_train, Y_train)
-                # acc_v[i] = evaluate_logistic_model(W, b, X_valid, Y_valid)
+            eval_t = s.run(acc, feed_dict={X:X_train, Y:Y_train})
+            eval_v = s.run(acc, feed_dict={X:X_valid, Y:Y_valid})
+            ctr_t = 0
+            ctr_v = 0
+            for j in range(len(Y_train)):
+                if eval_t[j] >= 0.5 and Y_train[j] == 1:
+                    ctr_t+=1
+                elif eval_t[j] < 0.5 and Y_train[j] == 0:
+                    ctr_t+=1
+            for j in range(len(Y_valid)):
+                if eval_v[j] >= 0.5 and Y_valid[j] == 1:
+                    ctr_v+=1
+                elif eval_v[j] < 0.5 and Y_valid[j] == 0:
+                    ctr_v+=1
+            acc_t[i] = (ctr_t/len(Y_train))*100
+            acc_v[i] = (ctr_v/len(Y_valid))*100
         #test error
         test_error = s.run(error, feed_dict={X:X_test, Y:Y_test})
+        eval = s.run(acc, feed_dict={X:X_test, Y:Y_test})
+        ctr = 0
+        for i in range(len(Y_test)):
+            if eval[i] >= 0.5 and Y_test[i] == 1:
+                ctr+=1
+            elif eval[i] < 0.5 and Y_test[i] == 0:
+                ctr+=1
+        accuracy = ctr/len(Y_test)
     print("Final training error = ",error_t[iterations-1])
     print("Final validation error = ",error_v[iterations-1])
     print("Final test error = ",test_error)
+    print("Final test Accuraccy = ",accuracy*100, "%")
     
     plot_errors(error_t, error_v)
-    #plot_accuracy(acc_t, acc_v)
+    plot_accuracy(acc_t, acc_v)
     
+def evaluate_model(W,b, X, Y):
+    with tf.Session as s:
+        s.run
     
 main()
+print("PART 3")
 buildGraph(0.99, 0.9, 0.0001, "MSE", 0.001)
 buildGraph(0.99, 0.9, 0.0001, "CE", 0.001)
