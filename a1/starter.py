@@ -42,7 +42,7 @@ def main():
     W = np.zeros((d,1))
     b = 0 
     reg = 0
-    alpha = 0.01
+    alpha = 0.005
     iterations = 5000
     EPS = 0.001
     print("PART 1")
@@ -70,7 +70,7 @@ def evaluate_linear_model(W_trained,b_trained,X_test,Y_test):
     Yhat = forward_propagation(W_trained, b_trained, X_test)
     # for i in range(len(Y_test)):
         # print(Yhat[i],Y_test[i])
-    eval = Yhat > 0.5
+    eval = sigm(Yhat) > 0.5
     correct = eval==Y_test
     acc = sum(correct)/len(Y_test)
     
@@ -83,7 +83,7 @@ def evaluate_logistic_model(W_trained,b_trained,X_test,Y_test):
     Yhat = forward_propagation(W_trained, b_trained, X_test)
     # for i in range(len(Y_test)):
         # print(Yhat[i],Y_test[i])
-    eval = Yhat > 0.5
+    eval = sigm(Yhat) > 0.5
     
     correct = eval==Y_test
     #print(correct)
@@ -165,7 +165,7 @@ def grad_descent(W, b, trainingData, trainingLabels, alpha, iterations, reg, EPS
             error_v[i] = MSE(W, b, X_valid, Y_valid, reg)
             error_t[i] = e
             acc_t[i] = evaluate_linear_model(W, b, trainingData, trainingLabels)
-            acc_t[i] = evaluate_linear_model(W, b, X_valid, Y_valid)
+            acc_v[i] = evaluate_linear_model(W, b, X_valid, Y_valid)
             dW, db = gradMSE(W, b, trainingData, trainingLabels, reg)
             
         elif lossType=="CE":
@@ -173,7 +173,7 @@ def grad_descent(W, b, trainingData, trainingLabels, alpha, iterations, reg, EPS
             error_v[i] = crossEntropyLoss(W, b, X_valid, Y_valid, reg)
             error_t[i] = e
             acc_t[i] = evaluate_logistic_model(W, b, trainingData, trainingLabels)
-            acc_t[i] = evaluate_logistic_model(W, b, X_valid, Y_valid)
+            acc_v[i] = evaluate_logistic_model(W, b, X_valid, Y_valid)
             #print(i)
             dW, db = gradCE(W, b, trainingData, trainingLabels, reg)
             
@@ -299,6 +299,6 @@ def evaluate_model(W,b, X, Y):
         s.run
     
 main()
-print("PART 3")
-buildGraph(0.99, 0.9, 0.0001, "MSE", 0.001)
-buildGraph(0.99, 0.9, 0.0001, "CE", 0.001)
+#print("PART 3")
+#buildGraph(0.99, 0.9, 0.0001, "MSE", 0.001)
+#buildGraph(0.99, 0.9, 0.0001, "CE", 0.001)
