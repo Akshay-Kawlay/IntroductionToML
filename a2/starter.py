@@ -68,10 +68,9 @@ def NN_forward(X, weights):
     '''
     W1 = weights["W1"]; W2 = weights["W2"]
     b1 = weights["b1"]; b2 = weights["b2"]
-    #X = X.T  #consistent with computeLayer matrix size expectation
+    
     S1 = computeLayer(X, W1, b1)
     X1 = relu(S1)
-    assert(X1.shape == S1.shape)
     S2 = computeLayer(X1, W2, b2)
     X2 = softmax(S2)
     store = {"S1": S1, "X1": X1, "S2":S2, "X2":X2}
@@ -132,12 +131,16 @@ def NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, n_hidde
     weights = {"W1": W1, "b1": b1, "W2": W2, "b2": b2}
     momentum = {"v1": v1, "vb1": vb1, "v2": v2, "vb2": vb2}
     
-    Y_train = Y_train.T     #being consistent with Yhat dimensions
-    X_train = X_train.T     #being consistent with W dimensions
+    Y_train = Y_train.T     #being consistent with parameter dimensions
+    X_train = X_train.T
+    Y_valid = Y_valid.T     #being consistent with parameter dimensions
+    X_valid = X_valid.T    
     
     #For plotting error per iteration
     train_error = np.zeros((epochs,1))
-    #valid_error = np.array(epochs)
+    valid_error = np.zeros((epochs,1))
+    train_acc = np.zeros((epochs,1))
+    valid_acc = np.zeros((epochs,1))
     
     #training
     for i in range(epochs):
@@ -145,24 +148,45 @@ def NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, n_hidde
         Yhat = store["X2"]
         weights, momentum = NN_backpropagation(X_train, Y_train, weights, momentum, store, lr, gamma)
         train_error[i] = CE(Y_train, Yhat)
+        train_acc[i] = calculateAccuraccy(Y_train, Yhat)
         print("iteration : ",i, " CE = ", train_error[i])
-        #valid_error[i] = CE(Y_train, store["X2"])
-    print_errorCurve(train_error)
+        #validation
+        valid_store = NN_forward(X_valid, weights); valid_Yhat = valid_store["X2"]
+        valid_error[i] = CE(Y_valid, valid_Yhat)
+        valid_acc[i] = calculateAccuraccy(Y_valid, valid_Yhat)
     
-    #predict
+    #plot
+    print_errorCurve(train_error, valid_error)
+    print_accCurve(train_acc, valid_acc)
+    
+    #predict testData
     store = NN_forward(X_test.T, weights)
-    pred = (store["X2"] > 0.5)
-    acc = np.sum(np.multiply((pred == Y_test.T), Y_test.T))/Y_test.shape[0]
-    print("Test Accuraccy = ", acc*100, "%")
+    acc = calculateAccuraccy(Y_test.T, store["X2"])
+    print("Test Accuraccy = ", acc, "%")
+
+def calculateAccuraccy(Y, Yhat):
+    pred = (Yhat > 0.5)
+    acc = np.sum(np.multiply((pred == Y), Y))/Y.shape[1]
+    return acc*100
     
-def print_errorCurve(train_error):
+def print_errorCurve(train_error, valid_error):
     ''' '''
     plt.plot(train_error, label="training error")
+    plt.plot(valid_error, label="validation error")
     plt.legend(loc='upper right')
     plt.xlabel("Iterations")
     plt.ylabel("Error")
     plt.show()
 
+def print_accCurve(train_acc, valid_acc):
+    ''' '''
+    plt.plot(train_acc, label="training accuracy")
+    plt.plot(train_acc, label="validation accuracy")
+    plt.legend(loc='lower right')
+    plt.xlabel("Iterations")
+    plt.ylabel("Accuraccy")
+    plt.show()
+    
 def NN_tf(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, n_hidden, lr):
     return None
 
@@ -190,7 +214,7 @@ def main():
     assert(Y_test.shape == (2724, 10))
     
     '''PART1'''
-    NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs=200, n_hidden=1000, lr=0.0020, gamma=0.99)
+    NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs=175, n_hidden=1000, lr=0.0025, gamma=0.99)  #epochs=175, n_h=1000, lr=0.0025,gmma=0.99 => accuraccy=81.71%
     
     '''PART2'''
     NN_tf(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs=20, n_hidden=15, lr=0.01)
