@@ -59,7 +59,7 @@ def CE(target, prediction):
     ce = (-1/N)*np.sum(np.multiply(target,np.log(prediction)))
     return np.squeeze(ce)
 
-def gradCE(target, prediction):
+def gradCE(target, prediction):         #Not sure where this is to be used or if it is required
     return (-1/N)*np.sum(np.multiply(target,(1/prediction)))
 
 def NN_forward(X, weights):
@@ -111,16 +111,51 @@ def NN_backpropagation(X, Y, weights, momentum, store, lr, gamma):
     momentum = {"v1": v1, "vb1": vb1, "v2": v2, "vb2": vb2}
     
     return weights, momentum
+   
+def save_weights(weights):
+    '''Store Weights during training'''
+    W1 = weights["W1"]; W2 = weights["W2"]
+    b1 = weights["b1"]; b2 = weights["b2"]
     
+    np.savetxt('weights//W1.txt', W1)
+    np.savetxt('weights//b1.txt', b1)
+    np.savetxt('weights//W2.txt', W2)
+    np.savetxt('weights//b2.txt', b2)
+    print("weights saved")
+
+def load_weights(X_train, Y_train, n_hidden):
+    '''initialize or load weight parameters'''
+    if os.path.isfile("weights/W1.txt"):
+        W1 = np.loadtxt("weights/W1.txt")
+        print("W1 shape : ", W1.shape)
+    else:
+        W1 = np.random.randn(n_hidden, X_train.shape[1])*0.01
+    if os.path.isfile("weights/b1.txt"):
+        b1 = np.loadtxt("weights/b1.txt")
+        b1 = b1.reshape((b1.shape[0], 1))
+        print("b1 shape : ", b1.shape)
+    else:
+        b1 = np.zeros((n_hidden, 1))
+    if os.path.isfile("weights/W2.txt"):
+        W2 = np.loadtxt("weights/W2.txt")
+        print("W2 shape : ", W2.shape)
+    else:
+        W2 = np.random.randn(Y_train.shape[1], n_hidden)*0.01
+    if os.path.isfile("weights/b2.txt"):
+        b2 = np.loadtxt("weights/b2.txt")
+        b2 = b2.reshape((b2.shape[0], 1))
+        print("b2 shape : ", b2.shape)
+    else:
+        b2 = np.zeros((Y_train.shape[1], 1))
     
+    return {"W1": W1, "b1": b1, "W2": W2, "b2": b2}
+    
+
 def NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, n_hidden, lr, gamma):
     '''Neural Network Model with Numpy'''
     
     #initialize parameter weights
-    W1 = np.random.randn(n_hidden, X_train.shape[1])*0.01
-    b1 = np.zeros((n_hidden, 1))
-    W2 = np.random.randn(Y_train.shape[1], n_hidden)*0.01
-    b2 = np.zeros((Y_train.shape[1], 1))
+    weights = load_weights(X_train, Y_train, n_hidden)
     
     #momentum parameters
     v1 = np.full((n_hidden, X_train.shape[1]), 1e-5)
@@ -128,7 +163,6 @@ def NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, n_hidde
     v2 = np.full((Y_train.shape[1], n_hidden), 1e-5)
     vb2 = np.full((Y_train.shape[1], 1), 1e-5)
     
-    weights = {"W1": W1, "b1": b1, "W2": W2, "b2": b2}
     momentum = {"v1": v1, "vb1": vb1, "v2": v2, "vb2": vb2}
     
     Y_train = Y_train.T     #being consistent with parameter dimensions
@@ -154,6 +188,8 @@ def NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, n_hidde
         valid_store = NN_forward(X_valid, weights); valid_Yhat = valid_store["X2"]
         valid_error[i] = CE(Y_valid, valid_Yhat)
         valid_acc[i] = calculateAccuraccy(Y_valid, valid_Yhat)
+        if (i+1)%25 == 0 and train_error[i] != float('nan'):
+            save_weights(weights)
     
     #plot
     print_errorCurve(train_error, valid_error)
@@ -194,7 +230,6 @@ def ReshapeData(X_train, X_valid, X_test):
     X_train = X_train.reshape(10000,784)
     X_valid = X_valid.reshape(6000,784)
     X_test = X_test.reshape(2724,784)
-    
     return X_train, X_valid, X_test
     
 def main():
