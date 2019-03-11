@@ -46,10 +46,17 @@ def shuffle(trainData, trainTarget):
 def relu(x):
     return np.maximum(0,x)
 
+def gradReLU(x):
+    return (x > 0)
+
 def softmax(x):
-    exp_x = np.exp(x)
+    exp_x = np.exp(x-np.amax(x, axis=0))   #the negative term fixes NaN error when x gets very large
     exp_x_denom = np.sum(exp_x, axis=0)
     return exp_x/exp_x_denom
+
+def gradSoftmax(x):
+    e = np.ones((x.shape[1], x.shape[1]))    
+    return np.multiply(np.dot(x,e.T), (1-np.dot(e,x.T)).T)
 
 def computeLayer(X, W, b):
     return np.dot(W,X)+b
@@ -60,7 +67,8 @@ def CE(target, prediction):
     return np.squeeze(ce)
 
 def gradCE(target, prediction):         #Not sure where this is to be used or if it is required
-    return (-1/N)*np.sum(np.multiply(target,(1/prediction)))
+    N = target.shape[1]
+    return (-1/N)*np.multiply(target,(1/prediction))
 
 def NN_forward(X, weights):
     ''' Forward Pass    
@@ -88,10 +96,14 @@ def NN_backpropagation(X, Y, weights, momentum, store, lr, gamma):
     X1 = store["X1"]
         
     #calculate gradients of error w.r.t weights
-    dE_dS2 = Yhat - Y
+    #print(Yhat.shape)
+    #print(X1.shape)
+    #dE_dS2 = np.multiply(gradCE(Y, Yhat),gradSoftmax(Yhat))
+    #print("dE_dS2 shape : ", dE_dS2.shape)
+    dE_dS2 = (Yhat - Y)#*gradCE(Y, Yhat)
     dE_dW2 = (1/N)*np.dot(dE_dS2, X1.T)
-    dE_db2 = (1/N)*np.sum(dE_dS2, axis=1, keepdims=True)
-    dE_dS1 = np.dot(W2.T, dE_dS2)*(1-np.power(X1,2))
+    dE_db2 = (1/N)*np.sum(dE_dS2, axis=1, keepdims=True)  #try axis=0
+    dE_dS1 = np.dot(W2.T, dE_dS2)*gradReLU(X1)
     dE_dW1 = (1/N)*np.dot(dE_dS1, X.T)
     dE_db1 = (1/N)*np.sum(dE_dS1, axis=1, keepdims=True)
     
@@ -127,24 +139,20 @@ def load_weights(X_train, Y_train, n_hidden):
     '''initialize or load weight parameters'''
     if os.path.isfile("weights/W1.txt"):
         W1 = np.loadtxt("weights/W1.txt")
-        print("W1 shape : ", W1.shape)
     else:
-        W1 = np.random.randn(n_hidden, X_train.shape[1])*0.01
+        W1 = np.random.randn(n_hidden, X_train.shape[1])*(2/(n_hidden+X_train.shape[1]))        #Xavier initialization
     if os.path.isfile("weights/b1.txt"):
         b1 = np.loadtxt("weights/b1.txt")
         b1 = b1.reshape((b1.shape[0], 1))
-        print("b1 shape : ", b1.shape)
     else:
         b1 = np.zeros((n_hidden, 1))
     if os.path.isfile("weights/W2.txt"):
         W2 = np.loadtxt("weights/W2.txt")
-        print("W2 shape : ", W2.shape)
     else:
-        W2 = np.random.randn(Y_train.shape[1], n_hidden)*0.01
+        W2 = np.random.randn(Y_train.shape[1], n_hidden)*(2/(Y_train.shape[1]+n_hidden))        #Xavier initialization
     if os.path.isfile("weights/b2.txt"):
         b2 = np.loadtxt("weights/b2.txt")
         b2 = b2.reshape((b2.shape[0], 1))
-        print("b2 shape : ", b2.shape)
     else:
         b2 = np.zeros((Y_train.shape[1], 1))
     
@@ -167,63 +175,82 @@ def NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, n_hidde
     
     Y_train = Y_train.T     #being consistent with parameter dimensions
     X_train = X_train.T
-    Y_valid = Y_valid.T     #being consistent with parameter dimensions
-    X_valid = X_valid.T    
+    Y_valid = Y_valid.T     
+    X_valid = X_valid.T
+    Y_test = Y_test.T     
+    X_test = X_test.T
     
     #For plotting error per iteration
     train_error = np.zeros((epochs,1))
     valid_error = np.zeros((epochs,1))
+    test_error = np.zeros((epochs,1))
     train_acc = np.zeros((epochs,1))
     valid_acc = np.zeros((epochs,1))
+    test_acc = np.zeros((epochs,1))
     
     #training
     for i in range(epochs):
+        
         store = NN_forward(X_train, weights)
         Yhat = store["X2"]
-        weights, momentum = NN_backpropagation(X_train, Y_train, weights, momentum, store, lr, gamma)
         train_error[i] = CE(Y_train, Yhat)
         train_acc[i] = calculateAccuraccy(Y_train, Yhat)
         print("iteration : ",i, " CE = ", train_error[i])
+        
         #validation
         valid_store = NN_forward(X_valid, weights); valid_Yhat = valid_store["X2"]
         valid_error[i] = CE(Y_valid, valid_Yhat)
         valid_acc[i] = calculateAccuraccy(Y_valid, valid_Yhat)
-        if (i+1)%25 == 0 and train_error[i] != float('nan'):
+        
+        #test
+        test_store = NN_forward(X_test, weights); test_Yhat = test_store["X2"]
+        test_error[i] = CE(Y_test, test_Yhat)
+        test_acc[i] = calculateAccuraccy(Y_test, test_Yhat)
+        
+        if np.isnan(train_error[i]):
+            break
+        if (i+1)%25 == 0:
             save_weights(weights)
+        weights, momentum = NN_backpropagation(X_train, Y_train, weights, momentum, store, lr, gamma)
+  
     
     #plot
-    print_errorCurve(train_error, valid_error)
-    print_accCurve(train_acc, valid_acc)
+    print_errorCurve(train_error, valid_error, test_error)
+    print_accCurve(train_acc, valid_acc, test_acc)
     
     #predict testData
-    store = NN_forward(X_test.T, weights)
-    acc = calculateAccuraccy(Y_test.T, store["X2"])
+    store = NN_forward(X_test, weights)
+    acc = calculateAccuraccy(Y_test, store["X2"])
     print("Test Accuraccy = ", acc, "%")
 
 def calculateAccuraccy(Y, Yhat):
-    pred = (Yhat > 0.5)
-    acc = np.sum(np.multiply((pred == Y), Y))/Y.shape[1]
+    pred = np.argmax(Yhat, axis=0)
+    Y_class = np.argmax(Y, axis=0)
+    acc = np.sum(pred == Y_class)/Y.shape[1]
     return acc*100
     
-def print_errorCurve(train_error, valid_error):
+def print_errorCurve(train_error, valid_error, test_error):
     ''' '''
     plt.plot(train_error, label="training error")
     plt.plot(valid_error, label="validation error")
+    plt.plot(test_error, label="testing error")
     plt.legend(loc='upper right')
     plt.xlabel("Iterations")
     plt.ylabel("Error")
     plt.show()
 
-def print_accCurve(train_acc, valid_acc):
+def print_accCurve(train_acc, valid_acc, test_acc):
     ''' '''
     plt.plot(train_acc, label="training accuracy")
     plt.plot(train_acc, label="validation accuracy")
+    plt.plot(test_acc, label="testing accuracy")
     plt.legend(loc='lower right')
     plt.xlabel("Iterations")
     plt.ylabel("Accuraccy")
     plt.show()
     
 def NN_tf(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, n_hidden, lr):
+    
     return None
 
 def ReshapeData(X_train, X_valid, X_test):
@@ -249,7 +276,7 @@ def main():
     assert(Y_test.shape == (2724, 10))
     
     '''PART1'''
-    NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs=175, n_hidden=1000, lr=0.0025, gamma=0.99)  #epochs=175, n_h=1000, lr=0.0025,gmma=0.99 => accuraccy=81.71%
+    NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs=200, n_hidden=1000, lr=0.05, gamma=0.99)  #epochs=175, n_h=1000, lr=0.0025,gmma=0.99 => accuraccy=81.71%
     
     '''PART2'''
     NN_tf(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs=20, n_hidden=15, lr=0.01)
