@@ -66,7 +66,7 @@ def CE(target, prediction):
     ce = (-1/N)*np.sum(np.multiply(target,np.log(prediction)))
     return np.squeeze(ce)
 
-def gradCE(target, prediction):         #Not sure where this is to be used or if it is required
+def gradCE(target, prediction):
     N = target.shape[1]
     return (-1/N)*np.multiply(target,(1/prediction))
 
@@ -96,13 +96,9 @@ def NN_backpropagation(X, Y, weights, momentum, store, lr, gamma):
     X1 = store["X1"]
         
     #calculate gradients of error w.r.t weights
-    #print(Yhat.shape)
-    #print(X1.shape)
-    #dE_dS2 = np.multiply(gradCE(Y, Yhat),gradSoftmax(Yhat))
-    #print("dE_dS2 shape : ", dE_dS2.shape)
-    dE_dS2 = (Yhat - Y)#*gradCE(Y, Yhat)
+    dE_dS2 = (Yhat - Y)
     dE_dW2 = (1/N)*np.dot(dE_dS2, X1.T)
-    dE_db2 = (1/N)*np.sum(dE_dS2, axis=1, keepdims=True)  #try axis=0
+    dE_db2 = (1/N)*np.sum(dE_dS2, axis=1, keepdims=True)
     dE_dS1 = np.dot(W2.T, dE_dS2)*gradReLU(X1)
     dE_dW1 = (1/N)*np.dot(dE_dS1, X.T)
     dE_db1 = (1/N)*np.sum(dE_dS1, axis=1, keepdims=True)
@@ -129,29 +125,29 @@ def save_weights(weights):
     W1 = weights["W1"]; W2 = weights["W2"]
     b1 = weights["b1"]; b2 = weights["b2"]
     
-    np.savetxt('weights//W1.txt', W1)
-    np.savetxt('weights//b1.txt', b1)
-    np.savetxt('weights//W2.txt', W2)
-    np.savetxt('weights//b2.txt', b2)
-    print("weights saved")
+    np.savetxt('W1.txt', W1)
+    np.savetxt('b1.txt', b1)
+    np.savetxt('W2.txt', W2)
+    np.savetxt('b2.txt', b2)
+    print("Weights Saved")
 
 def load_weights(X_train, Y_train, n_hidden):
     '''initialize or load weight parameters'''
-    if os.path.isfile("weights/W1.txt"):
-        W1 = np.loadtxt("weights/W1.txt")
+    if os.path.isfile("W1.txt"):
+        W1 = np.loadtxt("W1.txt")
     else:
         W1 = np.random.randn(n_hidden, X_train.shape[1])*(2/(n_hidden+X_train.shape[1]))        #Xavier initialization
-    if os.path.isfile("weights/b1.txt"):
-        b1 = np.loadtxt("weights/b1.txt")
+    if os.path.isfile("b1.txt"):
+        b1 = np.loadtxt("b1.txt")
         b1 = b1.reshape((b1.shape[0], 1))
     else:
         b1 = np.zeros((n_hidden, 1))
-    if os.path.isfile("weights/W2.txt"):
-        W2 = np.loadtxt("weights/W2.txt")
+    if os.path.isfile("W2.txt"):
+        W2 = np.loadtxt("W2.txt")
     else:
         W2 = np.random.randn(Y_train.shape[1], n_hidden)*(2/(Y_train.shape[1]+n_hidden))        #Xavier initialization
-    if os.path.isfile("weights/b2.txt"):
-        b2 = np.loadtxt("weights/b2.txt")
+    if os.path.isfile("b2.txt"):
+        b2 = np.loadtxt("b2.txt")
         b2 = b2.reshape((b2.shape[0], 1))
     else:
         b2 = np.zeros((Y_train.shape[1], 1))
@@ -195,7 +191,7 @@ def NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, n_hidde
         Yhat = store["X2"]
         train_error[i] = CE(Y_train, Yhat)
         train_acc[i] = calculateAccuraccy(Y_train, Yhat)
-        print("iteration : ",i, " CE = ", train_error[i])
+        print("Iteration : ",i, " Training Accuracy = ", train_acc[i])
         
         #validation
         valid_store = NN_forward(X_valid, weights); valid_Yhat = valid_store["X2"]
@@ -218,16 +214,16 @@ def NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, n_hidde
     print_errorCurve(train_error, valid_error, test_error)
     print_accCurve(train_acc, valid_acc, test_acc)
     
-    #predict testData
-    store = NN_forward(X_test, weights)
-    acc = calculateAccuraccy(Y_test, store["X2"])
-    print("Test Accuracy = ", acc, "%")
+    #print accuracies
+    print("Final Training Accuracy = ", train_acc[epochs-1]*100, "%")
+    print("Final Validation Accuracy = ", valid_acc[epochs-1]*100, "%")
+    print("Final Test Accuracy = ", test_acc[epochs-1]*100, "%")
 
 def calculateAccuraccy(Y, Yhat):
     pred = np.argmax(Yhat, axis=0)
     Y_class = np.argmax(Y, axis=0)
     acc = np.sum(pred == Y_class)/Y.shape[1]
-    return acc*100
+    return acc
     
 def print_errorCurve(train_error, valid_error, test_error):
     ''' '''
@@ -265,19 +261,20 @@ def batch_normalization_layer(x):
     return tf.nn.batch_normalization(x,mean=mean,variance=variance,offset=offset,scale=scale,variance_epsilon=epsilon)
 
 def fully_connected_layer(x,weights, biases,rate):
-    # Reshape output x to fit fully connected layer input
+    # Step 6 : Flatten Layer : Reshape output x to fit fully connected layer input
     fully_connected = tf.reshape(x, [-1, weights['wd1'].get_shape().as_list()[0]])
-    #print("before", x.shape)
+    
+    # Step 7 : Fully connected layer (with 784 output units, i.e. corresponding to each pixel)
     fully_connected = tf.add(tf.matmul(fully_connected, weights['wd1']), biases['bd1'])
-    #for 2.3.2 dropout
-    #dropout = tf.layers.dropout(inputs=fully_connected, rate=rate)
-    fully_connected = tf.nn.relu(fully_connected)#replace with dropout
+    
+    #for Section 2.3.2 dropout
+    dropout = tf.layers.dropout(inputs=fully_connected, rate=rate)
+    
+    # Step 8 : ReLU activation
+    fully_connected = tf.nn.relu(dropout)
 
-    # Output, class prediction
-    # finally we multiply the fully connected layer with the weights and add a bias term. 
-    #print("after", fully_connected.shape)
+    # Step 9 : Fully connected layer (with 10 output units, i.e. corresponding to each class)
     result = tf.add(tf.matmul(fully_connected, weights['out']), biases['out'])
-
 
     return result
 
@@ -306,57 +303,51 @@ def NN_tf(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, batchSize,
         'bd1': tf.get_variable('B1', shape=(784), initializer=tf.contrib.layers.xavier_initializer()),
         'out': tf.get_variable('B3', shape=(10), initializer=tf.contrib.layers.xavier_initializer()),
     }
-
+    
+    # Step 1: Input Layer
     input_layer = tf.reshape(x, [-1,28,28,1])
 
-    #2. A 3 × 3 convolutional layer, with 32 filters, using vertical and horizontal strides of 1. 
-    #3. ReLU activation
+    # Step 2. A 3 × 3 convolutional layer, with 32 filters, using vertical and horizontal strides of 1. 
+    # Step 3. ReLU activation
     layer = convolutional_layer(input_layer, weights['wc1'], biases['bc1'])
     #print("size of layer after convolution = ", layer.shape)
 
-    #4. A batch normalization layer
+    # Step 4. A batch normalization layer
     layer = batch_normalization_layer(layer)
     #print("size of layer after normalization = ", layer.shape)
 
-
-    #5. A max 2 × 2 max pooling layer
+    # Step 5. A max 2 × 2 max pooling layer
     layer = maxpooling_layer(layer, k=2)
     #print("size of layer after maxpooling = ", layer.shape)
 
-
-    #6. Fully connected layer
-    #7. ReLU activation
-    #8. Fully connected layer
+    # Step 6. Flatten Layer
+    # Step 7. Fully connected layer
+    # Step 8. ReLU activation
+    # Step 9. Fully connected layer
     prediction = fully_connected_layer(layer,weights,biases,rate)
     #print("size of layer after fully connected = ", prediction.shape)
 
-
-    #9. Softmax output
+    # 10. Softmax output
     softmax = tf.nn.softmax(prediction)
     #print("size of layer after softmax = ", softmax.shape)
 
-    
-    #10. Cross Entropy loss
+    # 11. Cross Entropy loss
     cost = softmax_cross_entropy_layer(softmax, y) + lambda_val*tf.reduce_sum(tf.square(weights["out"])) + lambda_val*tf.reduce_sum(tf.square(weights["wd1"])) + lambda_val*tf.reduce_sum(tf.square(weights["wc1"])) 
     #print("size of layer after softmax cross extropy = ", cost)
 
-
-    #Adam optimizer
+    # Part 2.2 Adam optimizer
     adam_optimizer_val = adam_optimizer(cost)
-
 
     #prediction and accurracies
     correct_prediction = tf.equal(tf.argmax(softmax, 1), tf.argmax(y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-    # Initializing the variables weights and biases
+    # Initializing global variables
     init = tf.global_variables_initializer()
     
     #For plotting error per iteration
-    I = (len(X_train)//batchSize)
     num_iterations = epochs
     train_error = np.zeros((num_iterations,1))
-    
     valid_error = np.zeros((num_iterations,1))
     test_error = np.zeros((num_iterations,1))
     train_acc = np.zeros((num_iterations,1))
@@ -382,8 +373,9 @@ def NN_tf(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, batchSize,
         print_errorCurve(train_error, valid_error, test_error)
         print_accCurve(train_acc, valid_acc, test_acc)
         
+        print("Final Training Accuracy = ", train_acc[epochs-1]*100, "%")
+        print("Final Validation Accuracy = ", valid_acc[epochs-1]*100, "%")
         print("Final Test Accuracy = ", test_acc[epochs-1]*100, "%")
-    
 
 def ReshapeData(X_train, X_valid, X_test):
     X_train = X_train.reshape(10000,784)
@@ -408,10 +400,10 @@ def main():
     assert(Y_test.shape == (2724, 10))
     
     '''PART1'''
-    #NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs=200, n_hidden=1000, lr=0.05, gamma=0.99)  #epochs=175, n_h=1000, lr=0.0025,gmma=0.99 => accuraccy=81.71%
+    NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs=200, n_hidden=1000, lr=0.05, gamma=0.99)
     
     '''PART2'''
-    NN_tf(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs=50, batchSize=32, lr=0.0001, noOfImages=10,lambda_val=0.1,rate=0.9)
+    NN_tf(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs=50, batchSize=32, lr=0.0001, noOfImages=10,lambda_val=0,rate=1)
 
     
 main()
