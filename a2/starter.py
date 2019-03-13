@@ -221,7 +221,7 @@ def NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, n_hidde
     #predict testData
     store = NN_forward(X_test, weights)
     acc = calculateAccuraccy(Y_test, store["X2"])
-    print("Test Accuraccy = ", acc, "%")
+    print("Test Accuracy = ", acc, "%")
 
 def calculateAccuraccy(Y, Yhat):
     pred = np.argmax(Yhat, axis=0)
@@ -242,11 +242,11 @@ def print_errorCurve(train_error, valid_error, test_error):
 def print_accCurve(train_acc, valid_acc, test_acc):
     ''' '''
     plt.plot(train_acc, label="training accuracy")
-    plt.plot(train_acc, label="validation accuracy")
+    plt.plot(valid_acc, label="validation accuracy")
     plt.plot(test_acc, label="testing accuracy")
     plt.legend(loc='lower right')
     plt.xlabel("Iterations")
-    plt.ylabel("Accuraccy")
+    plt.ylabel("Accuracy")
     plt.show()
 
 def convolutional_layer(x, weights, biases, strides=1):
@@ -267,7 +267,7 @@ def batch_normalization_layer(x):
 def fully_connected_layer(x,weights, biases,rate):
     # Reshape output x to fit fully connected layer input
     fully_connected = tf.reshape(x, [-1, weights['wd1'].get_shape().as_list()[0]])
-    print("before", x.shape)
+    #print("before", x.shape)
     fully_connected = tf.add(tf.matmul(fully_connected, weights['wd1']), biases['bd1'])
     #for 2.3.2 dropout
     #dropout = tf.layers.dropout(inputs=fully_connected, rate=rate)
@@ -275,7 +275,7 @@ def fully_connected_layer(x,weights, biases,rate):
 
     # Output, class prediction
     # finally we multiply the fully connected layer with the weights and add a bias term. 
-    print("after", fully_connected.shape)
+    #print("after", fully_connected.shape)
     result = tf.add(tf.matmul(fully_connected, weights['out']), biases['out'])
 
 
@@ -290,7 +290,7 @@ def adam_optimizer(cost):
 
 def NN_tf(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, batchSize, lr, noOfImages, lambda_val,rate):
     '''Neural Network Model with tf'''
-    print("Starting part 2")
+    print("Starting Part 2")
     
     #initialize parameter weights
     x = tf.placeholder(tf.float32, shape=None)#input placeholder dimension of BatchSize x 784
@@ -309,36 +309,36 @@ def NN_tf(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, batchSize,
 
     input_layer = tf.reshape(x, [-1,28,28,1])
 
-    #2. A 4 × 4 convolutional layer, with 32 filters, using vertical and horizontal strides of 1. 
+    #2. A 3 × 3 convolutional layer, with 32 filters, using vertical and horizontal strides of 1. 
     #3. ReLU activation
     layer = convolutional_layer(input_layer, weights['wc1'], biases['bc1'])
-    print("size of layer after convolution = ", layer.shape)
+    #print("size of layer after convolution = ", layer.shape)
 
     #4. A batch normalization layer
     layer = batch_normalization_layer(layer)
-    print("size of layer after normalization = ", layer.shape)
+    #print("size of layer after normalization = ", layer.shape)
 
 
     #5. A max 2 × 2 max pooling layer
     layer = maxpooling_layer(layer, k=2)
-    print("size of layer after maxpooling = ", layer.shape)
+    #print("size of layer after maxpooling = ", layer.shape)
 
 
     #6. Fully connected layer
     #7. ReLU activation
     #8. Fully connected layer
     prediction = fully_connected_layer(layer,weights,biases,rate)
-    print("size of layer after fully connected = ", prediction.shape)
+    #print("size of layer after fully connected = ", prediction.shape)
 
 
     #9. Softmax output
     softmax = tf.nn.softmax(prediction)
-    print("size of layer after softmax = ", softmax.shape)
+    #print("size of layer after softmax = ", softmax.shape)
 
     
     #10. Cross Entropy loss
-    cost = softmax_cross_entropy_layer(softmax, y) #+ lambda_val*tf.reduce_sum(tf.square(weights["out"])) + lambda_val*tf.reduce_sum(tf.square(weights["wd1"]))
-    print("size of layer after softmax cross extropy = ", cost)
+    cost = softmax_cross_entropy_layer(softmax, y) + lambda_val*tf.reduce_sum(tf.square(weights["out"])) + lambda_val*tf.reduce_sum(tf.square(weights["wd1"])) + lambda_val*tf.reduce_sum(tf.square(weights["wc1"])) 
+    #print("size of layer after softmax cross extropy = ", cost)
 
 
     #Adam optimizer
@@ -346,36 +346,43 @@ def NN_tf(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs, batchSize,
 
 
     #prediction and accurracies
-    print()
     correct_prediction = tf.equal(tf.argmax(softmax, 1), tf.argmax(y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
     # Initializing the variables weights and biases
     init = tf.global_variables_initializer()
     
-
+    #For plotting error per iteration
+    I = (len(X_train)//batchSize)
+    num_iterations = epochs
+    train_error = np.zeros((num_iterations,1))
+    
+    valid_error = np.zeros((num_iterations,1))
+    test_error = np.zeros((num_iterations,1))
+    train_acc = np.zeros((num_iterations,1))
+    valid_acc = np.zeros((num_iterations,1))
+    test_acc = np.zeros((num_iterations,1))
+    
     with tf.Session() as sess:
         sess.run(init) 
         train_acc = np.zeros((epochs,1))
         
         for i in range(epochs):
-            for batch in range(len(X_train)//batchSize):
-                batch_x = X_train[batch*batchSize:min((batch+1)*batchSize,len(X_train))]
-                batch_y = Y_train[batch*batchSize:min((batch+1)*batchSize,len(Y_train))]
-
-                opt = sess.run(adam_optimizer_val, feed_dict={x:batch_x, y: batch_y})
-                acc1 = sess.run(softmax, feed_dict={x:batch_x, y: batch_y})
-                temp = calculateAccuraccy(batch_y, acc1)
-                print("iter", i ,"batch# : ", batch, " Accuraccy = ", temp)
-                # Calculate batch loss and accuracy
-                loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x, y: batch_y})
-            print("Iter " + str(i) + ", Loss= " ,loss  ," Training Accuracy= ", acc)
-            print("Optimization Finished!")
-            acc1 = sess.run(softmax, feed_dict={x:batch_x, y: batch_y})
-            train_acc[i] = calculateAccuraccy(batch_y, acc1)
-            print("iteration : ", i, " Accuraccy = ", train_acc[i])
+            opt = sess.run(adam_optimizer_val, feed_dict={x:X_train[0:batchSize], y: Y_train[0:batchSize]})
+            
+            #measurements
+            train_error[i], train_acc[i] = sess.run([cost, accuracy], feed_dict={x: X_train, y: Y_train})
+            valid_error[i], valid_acc[i] = sess.run([cost, accuracy], feed_dict={x: X_valid, y: Y_valid})
+            test_error[i], test_acc[i] = sess.run([cost, accuracy], feed_dict={x: X_test, y: Y_test})
+            print("Iteration", i ," Training Accuraccy = ", train_acc[i])
+            
             X_train,Y_train = shuffle(X_train,Y_train)
 
+        #plot error and accuracy
+        print_errorCurve(train_error, valid_error, test_error)
+        print_accCurve(train_acc, valid_acc, test_acc)
+        
+        print("Final Test Accuracy = ", test_acc[epochs-1]*100, "%")
     
 
 def ReshapeData(X_train, X_valid, X_test):
@@ -404,7 +411,7 @@ def main():
     #NN_numpy(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs=200, n_hidden=1000, lr=0.05, gamma=0.99)  #epochs=175, n_h=1000, lr=0.0025,gmma=0.99 => accuraccy=81.71%
     
     '''PART2'''
-    NN_tf(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs=25, batchSize=32, lr=0.0001, noOfImages=10,lambda_val=0.01,rate=0.9)
+    NN_tf(X_train, Y_train, X_valid, Y_valid, X_test, Y_test, epochs=50, batchSize=32, lr=0.0001, noOfImages=10,lambda_val=0.1,rate=0.9)
 
     
 main()
