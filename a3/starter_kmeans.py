@@ -73,49 +73,69 @@ def Kmeans(epochs, lr, K):
     print(val_data.shape)
     N = data.shape[0]
     d = data.shape[1]
-    #K = 3
+    N_valid = val_data.shape[0]
+    
     #initialize centroids
     MU = tf.get_variable(name="MU", shape=(K,d))
-    #print(MU)
-    
-    #initialize tensors and placeholders
-    X = tf.placeholder(tf.float32, shape=(N,d))#input placeholder dimension of Nxd
+        
+    X = tf.placeholder(tf.float32, shape=(N,d))     #initialize tensors and placeholders
     pair_dist = distanceFunc(X, MU)
     loss = getLoss(pair_dist)
     adam_op = tf.train.AdamOptimizer(lr, beta1=0.9, beta2=0.99, epsilon=1e-5).minimize(loss)
     
+    #initializing tensors for validation 
+    X_valid = tf.placeholder(tf.float32, shape=(N_valid,d))#input placeholder dimension of Nxd
+    pair_dist_v = distanceFunc(X_valid, MU)
+    loss_v = getLoss(pair_dist_v)
+    
     init = tf.global_variables_initializer()
     
     #initialize loss per iteration
-    loss_array = np.zeros((epochs,1))
+    train_loss_array = np.zeros((epochs,1))
+    valid_loss_array = np.zeros((epochs,1))
     
     with tf.Session() as sess:
         sess.run(init) 
         i = 1
         while(i < epochs):
             sess.run(adam_op, feed_dict={X: data})
-            loss_array[i] = sess.run(loss, feed_dict={X: data})
-            print("Iteration: "+str(i)+" loss: "+str(loss_array[i]))
+            train_loss_array[i] = sess.run(loss, feed_dict={X: data})/N
+            valid_loss_array[i] = sess.run(loss_v, feed_dict={X_valid: val_data})/N_valid
+            print("Iteration: "+str(i)+" loss: "+str(train_loss_array[i]))
             i+=1
         #print(sess.run(pair_dist, feed_dict={X: data}))
+        printLossCurve(train_loss_array, valid_loss_array)
+        print("")
+        print("Final training loss : ", train_loss_array[epochs-1])
+        print("Final validation loss : ", valid_loss_array[epochs-1])
+        print("")
         distribution = tf.argmin(pair_dist, axis=1)
         belongs_to = sess.run(distribution, feed_dict={X: data})
         K_percent = findKDistribution(belongs_to, K)
+        
+        print("")
+        print("Distribution")
+        print("Red : ", K_percent[0], "%")
+        #print("Green : ", K_percent[1], "%")
+        #print("Blue : ", K_percent[2], "%")
+        #print("Magenta : ", K_percent[3], "%")
+        #print("Yellow : ", K_percent[4], "%")
+        print("")
+            
         print_scatter2Dplot(data, belongs_to, K)
-        #printLossCurve(loss_array)
 
 def print_scatter2Dplot(data, belongs_to, K):
     '''prints scatter plot of dataset'''
-    #print(data[:,0])
     K_color = [K_COLOR_MAP[i] for i in belongs_to]
     plt.scatter(data[:,0], data[:,1], c=K_color)
     plt.show()
         
-def printLossCurve(loss_array):
-    plt.plot(loss_array, label="K-means loss")
+def printLossCurve(train_loss_array, valid_loss_array):
+    plt.plot(train_loss_array, label="K-means train loss")
+    plt.plot(valid_loss_array, label="K-means valid loss")
     plt.legend(loc='upper right')
     plt.xlabel("Iterations")
     plt.ylabel("loss")
     plt.show()
 
-Kmeans(epochs=500, lr=0.01, K=5)
+Kmeans(epochs=500, lr=0.01, K=3)
